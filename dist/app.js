@@ -442,8 +442,9 @@
     }
     return authShell(`
       <section class="result-panel" aria-labelledby="result-title">
-        <h1 id="result-title">We couldn’t confirm your identity — simulated result</h1>
+        <h1 id="result-title">Sorry, we couldn’t confirm your identity</h1>
         ${steps("result")}
+        <p>Please proceed to your nearest Access Nova Scotia Centre for Services.</p>
         <p>Access to online services and personal records is not granted for this fictional profile.</p>
         <div class="actions">
           <button class="primary-button" data-action="try-photo-again">Try again</button>
