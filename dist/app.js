@@ -76,6 +76,27 @@
     },
   };
 
+  // Fictional VIN registry used by the title flow. The 70 typed status belongs to the VIN record, not the applicant.
+  const vinRegistry = {
+    "NVD1TST70A0000001": { year: "2009", make: "Dodge", model: "Ram 1500", seventyTyped: true, note: "Prior out-of-province salvage brand" },
+    "NVD1TST70B0000002": { year: "2012", make: "Nissan", model: "Altima", seventyTyped: true, note: "Rebuilt after flood damage" },
+    "NVD1TSTCLN0000003": { year: "2022", make: "Kia", model: "Seltos", seventyTyped: false, note: "Clean history" },
+    "NVD1TSTCLN0000004": { year: "2019", make: "Ford", model: "F-150", seventyTyped: false, note: "Clean history" },
+    "NVD1TSTCLN0000005": { year: "2016", make: "Volkswagen", model: "Jetta", seventyTyped: false, note: "Clean history" },
+  };
+
+  function lookupVin(vin) {
+    const record = vinRegistry[(vin || "").trim().toUpperCase()];
+    return record ? { ...record, vehicle: `${record.year} ${record.make} ${record.model}` } : null;
+  }
+
+  function vinLookupPanel(vin) {
+    if (!vin) return '<p class="hint">Enter a VIN to look up the vehicle record.</p>';
+    const record = lookupVin(vin);
+    if (!record) return '<p class="hint">No vehicle found for this VIN in the demo registry.</p>';
+    return `<p><strong>${escapeHtml(record.vehicle)}</strong><br />70 typed: <strong>${record.seventyTyped ? "Yes" : "No"}</strong> - ${escapeHtml(record.note)}</p>`;
+  }
+
   const serviceDetails = {
     licence: {
       title: "Replace driving licence",
@@ -1051,7 +1072,8 @@
   }
 
   function titleNewFlow() {
-    return flowShell("Title a vehicle - new transaction", `<form data-action="title-new"><div class="form-row"><label for="vehicle">Vehicle description</label><input id="vehicle" name="vehicle" placeholder="2021 Honda Civic" required /></div><div class="form-row"><label for="vin">VIN</label><input id="vin" name="vin" required /></div><div class="form-row"><label for="cycle">Ownership-cycle identifier</label><input id="cycle" name="cycle" value="cycle-1" required /></div><label class="fine-row"><input type="checkbox" name="seventyTyped" /> 70 typed marker</label><fieldset class="form-row"><legend class="fieldset-label">Would you like to plate the vehicle?</legend><div class="radio-list"><label><input type="radio" name="wantsPlate" value="yes" required /> Yes</label><label><input type="radio" name="wantsPlate" value="no" /> No</label></div></fieldset><fieldset class="form-row"><legend class="fieldset-label">Is the vehicle safety inspected?</legend><div class="radio-list"><label><input type="radio" name="safety" value="yes" required /> Yes</label><label><input type="radio" name="safety" value="no" /> No</label></div></fieldset><div class="form-row"><label for="insurance">Fictional insurance information or upload note</label><input id="insurance" name="insurance" required /></div><button class="primary-button" type="submit">Submit title demo</button></form>`, "#/services/vehicles");
+    const sampleVins = Object.entries(vinRegistry).map(([vin, v]) => `<li><button class="text-button" type="button" data-fill-vin="${vin}">${vin}</button> - ${v.year} ${v.make} ${v.model}${v.seventyTyped ? " (70 typed)" : ""}</li>`).join("");
+    return flowShell("Title a vehicle - new transaction", `<form data-action="title-new"><div class="form-row"><label for="vin">VIN</label><input id="vin" name="vin" autocomplete="off" required /><details class="hint"><summary>Demo VINs</summary><ul>${sampleVins}</ul></details></div><div class="form-row" id="vin-lookup" aria-live="polite">${vinLookupPanel("")}</div><div class="form-row"><label for="cycle">Ownership-cycle identifier</label><input id="cycle" name="cycle" value="cycle-1" required /></div><fieldset class="form-row"><legend class="fieldset-label">Would you like to plate the vehicle?</legend><div class="radio-list"><label><input type="radio" name="wantsPlate" value="yes" required /> Yes</label><label><input type="radio" name="wantsPlate" value="no" /> No</label></div></fieldset><fieldset class="form-row"><legend class="fieldset-label">Is the vehicle safety inspected?</legend><div class="radio-list"><label><input type="radio" name="safety" value="yes" required /> Yes</label><label><input type="radio" name="safety" value="no" /> No</label></div></fieldset><div class="form-row"><label for="insurance">Fictional insurance information or upload note</label><input id="insurance" name="insurance" required /></div><button class="primary-button" type="submit">Submit title demo</button></form>`, "#/services/vehicles");
   }
 
   function titlePendingFlow() {
@@ -1159,17 +1181,19 @@
 
   function handleTitleNew(form) {
     const vin = form.vin.value.trim().toUpperCase();
+    const record = lookupVin(vin);
+    if (!record) return announce("No vehicle found for this VIN in the demo registry.");
     const cycle = form.cycle.value.trim();
     const existing = titleTransactions().find((item) => item.vin === vin && item.cycle === cycle && item.status !== "Cancelled");
     if (existing) return announce("A demo title transaction already exists for this VIN and ownership cycle.");
-    const seventyTyped = form.seventyTyped.checked;
+    const seventyTyped = record.seventyTyped;
     const wantsPlate = form.wantsPlate.value === "yes";
     const safety = form.safety.value;
     const tx = {
       id: ref("TITLE"),
       vin,
       cycle,
-      vehicle: form.vehicle.value.trim(),
+      vehicle: record.vehicle,
       status: "Awaiting invoice",
       wantsPlate,
       safety: safety === "yes" ? "Yes" : "No",
@@ -1205,6 +1229,7 @@
       permitStatus: tx.wantsPlate && !tx.seventyTyped ? "Permitted" : "Unpermitted",
       permitExpiry: tx.wantsPlate && !tx.seventyTyped ? "Temporary" : "",
       ownershipCycle: tx.cycle,
+      seventyTyped: Boolean(tx.seventyTyped),
     };
     state.vehicleOverrides[profile().username] = [vehicle, ...(state.vehicleOverrides[profile().username] || [])];
     addHistory(`Completed title transaction - ${tx.vehicle}`, "Complete");
@@ -1287,6 +1312,14 @@
     document.querySelectorAll("[data-service]").forEach((button) => button.addEventListener("click", () => {
       activeTransaction = null;
       navigate(`#/transaction/${button.dataset.service}`);
+    }));
+    const vinInput = document.getElementById("vin");
+    const vinLookup = document.getElementById("vin-lookup");
+    if (vinInput && vinLookup) vinInput.addEventListener("input", () => { vinLookup.innerHTML = vinLookupPanel(vinInput.value); });
+    document.querySelectorAll("[data-fill-vin]").forEach((button) => button.addEventListener("click", () => {
+      if (!vinInput || !vinLookup) return;
+      vinInput.value = button.dataset.fillVin;
+      vinLookup.innerHTML = vinLookupPanel(vinInput.value);
     }));
     document.querySelectorAll("form").forEach((form) => form.addEventListener("submit", (event) => {
       event.preventDefault();
