@@ -17,8 +17,8 @@
         address: "42 Harbour Road, Lunenburg, NS B0J 2C0",
       },
       vehicles: [
-        { id: "veh-1", year: "2021", make: "Subaru", model: "Forester", plate: "NVD 214", permit: "VP-903124" },
-        { id: "veh-2", year: "2018", make: "Toyota", model: "Tacoma", plate: "NVD 588", permit: "VP-665930" },
+        { id: "veh-1", year: "2021", make: "Subaru", model: "Forester", plate: "NVD 214", plateExpiry: "31 May 2027", permit: "VP-903124" },
+        { id: "veh-2", year: "2018", make: "Toyota", model: "Tacoma", plate: "NVD 588", plateExpiry: "30 November 2026", permit: "VP-665930" },
       ],
       history: [
         { ref: "NVD-REQ-10024", service: "Driver's licence renewal", status: "Complete", date: "12 Jun 2026" },
@@ -40,7 +40,7 @@
         address: "18 Maple Crescent, Truro, NS B2N 4T6",
       },
       vehicles: [
-        { id: "veh-3", year: "2020", make: "Honda", model: "Civic", plate: "NVD 932", permit: "VP-318872" },
+        { id: "veh-3", year: "2020", make: "Honda", model: "Civic", plate: "NVD 932", plateExpiry: "31 March 2027", permit: "VP-318872" },
       ],
       history: [{ ref: "NVD-REQ-09918", service: "Vehicle permit replacement", status: "Complete", date: "23 Apr 2026" }],
     },
@@ -88,6 +88,7 @@
   let auth = { stage: "public", username: null, twoStep: false, photo: false };
   let verificationTimer = null;
   let activeTransaction = null;
+  let activeNoticeVehicleId = null;
 
   const state = loadState();
 
@@ -103,9 +104,10 @@
       return {
         requests: stored.requests || {},
         assistance: stored.assistance || [],
+        vehicleSales: stored.vehicleSales || {},
       };
     } catch {
-      return { requests: {}, assistance: [] };
+      return { requests: {}, assistance: [], vehicleSales: {} };
     }
   }
 
@@ -117,8 +119,10 @@
     auth = { stage: "public", username: null, twoStep: false, photo: false };
     state.requests = {};
     state.assistance = [];
+    state.vehicleSales = {};
     saveState();
     activeTransaction = null;
+    activeNoticeVehicleId = null;
     location.hash = "#/";
     announce("Demo reset. Sessions, requests and assistance records cleared.");
     render();
@@ -482,44 +486,143 @@
           <h1>Welcome, ${p.name}</h1>
           <p class="hint">Identity verification occurred during sign-in for this demo and is not repeated for each transaction.</p>
           <div class="dashboard-grid">
-            <section class="record-card">
-              <h2>Driving licence summary</h2>
+            <section class="record-card dashboard-card-static">
+              <h2>My Summary</h2>
               <dl>
-                <dt>Licence</dt><dd>${p.licence.number}</dd>
-                <dt>Class</dt><dd>${p.licence.class}</dd>
-                <dt>Status</dt><dd>${p.licence.status}</dd>
-                <dt>Expiry</dt><dd>${p.licence.expiry}</dd>
+                <dt>Name:</dt><dd>${p.name}</dd>
+                <dt>DL #:</dt><dd>${p.licence.number}</dd>
+                <dt>Status:</dt><dd>${p.licence.status}</dd>
+                <dt>Address:</dt><dd>${p.licence.address}</dd>
+                <dt>DL Expiry:</dt><dd>${p.licence.expiry}</dd>
               </dl>
             </section>
-            <section class="record-card">
-              <h2>Registered vehicles</h2>
-              <ul class="summary-list">${p.vehicles.map(vehicleSummary).join("")}</ul>
-            </section>
-            <section class="record-card">
-              <h2>Service actions</h2>
+            <button class="record-card dashboard-card-button" data-nav="#/dashboard/vehicles">
+              <span class="dashboard-card-title">My Vehicles</span>
+              <span>${p.vehicles.length} fictional vehicle records</span>
+              <span class="card-link-text">View vehicle list and Notice of Sale</span>
+            </button>
+            <section class="record-card dashboard-card-static">
+              <h2>Service Actions</h2>
               <div class="actions">
-                <button class="primary-button" data-service="licence">Replace driving licence</button>
-                <button class="primary-button" data-service="ownership">Replace vehicle ownership certificate</button>
-                <button class="primary-button" data-service="permit">Replace vehicle permit</button>
+                <button class="primary-button" data-service="licence">Drivers License</button>
+                <button class="primary-button" data-service="ownership">Vehicles</button>
+                <button class="primary-button" data-service="permit">Permits</button>
               </div>
             </section>
-            <section class="record-card">
-              <h2>Request history</h2>
-              ${historyList(p)}
-            </section>
+            <button class="record-card dashboard-card-button" data-nav="#/dashboard/history">
+              <span class="dashboard-card-title">Transaction History</span>
+              <span>${combinedHistory(p).length} fictional transactions</span>
+              <span class="card-link-text">View all transactions</span>
+            </button>
           </div>
         </div>
       </div>
     `);
   }
 
+  function dashboardVehiclesScreen() {
+    if (auth.stage !== "complete" || !auth.photo) return guarded();
+    const p = profile();
+    return shell(`
+      <div class="main-panel dashboard">
+        <div class="layout-width">
+          <button class="text-button" data-nav="#/dashboard">Back to dashboard</button>
+          <section class="record-card">
+            <h1>My Vehicles</h1>
+            <ul class="vehicle-list">${p.vehicles.map(vehicleDetail).join("")}</ul>
+          </section>
+          ${activeNoticeVehicleId ? noticeOfSaleDialog(activeNoticeVehicleId) : ""}
+        </div>
+      </div>
+    `);
+  }
+
+  function dashboardHistoryScreen() {
+    if (auth.stage !== "complete" || !auth.photo) return guarded();
+    const p = profile();
+    return shell(`
+      <div class="main-panel dashboard">
+        <div class="layout-width">
+          <button class="text-button" data-nav="#/dashboard">Back to dashboard</button>
+          <section class="record-card">
+            <h1>Transaction History</h1>
+            ${historyList(p)}
+          </section>
+        </div>
+      </div>
+    `);
+  }
+
   function vehicleSummary(v) {
-    return `<li class="history-item"><strong>${v.year} ${v.make} ${v.model}</strong><br />Plate ${v.plate}; permit ${v.permit}</li>`;
+    const sale = vehicleSale(v.id);
+    return `<li class="history-item"><strong>${vehicleName(v)}${sale ? ` <span class="sold-mark">sold to ${escapeHtml(sale.personName)}</span>` : ""}</strong><br />Plate ${sale ? "removed" : v.plate}; plate expires ${sale ? "not active" : v.plateExpiry}; permit ${v.permit}</li>`;
+  }
+
+  function vehicleDetail(v) {
+    const sale = vehicleSale(v.id);
+    return `<li class="vehicle-item">
+      <div>
+        <h2>${vehicleName(v)}${sale ? ` <span class="sold-mark">sold to ${escapeHtml(sale.personName)}</span>` : ""}</h2>
+        <dl>
+          <dt>Plate</dt><dd>${sale ? "Removed after simulated Notice of Sale" : v.plate}</dd>
+          <dt>Plate expiry</dt><dd>${sale ? "Not active" : v.plateExpiry}</dd>
+          <dt>Permit</dt><dd>${v.permit}</dd>
+          ${sale ? `<dt>Notice of Sale</dt><dd>${escapeHtml(sale.ref)} submitted ${escapeHtml(sale.dateSold)}</dd>` : ""}
+        </dl>
+      </div>
+      <button class="secondary-button" data-open-nos="${v.id}" ${sale ? "disabled" : ""}>Post Notice of Sale</button>
+    </li>`;
+  }
+
+  function vehicleName(v) {
+    return `${v.year} ${v.make} ${v.model}`;
+  }
+
+  function vehicleSale(vehicleId) {
+    return state.vehicleSales?.[profile().username]?.[vehicleId] || null;
+  }
+
+  function noticeOfSaleDialog(vehicleId) {
+    const vehicle = profile().vehicles.find((v) => v.id === vehicleId);
+    if (!vehicle) return "";
+    return `<div class="modal-backdrop" role="presentation">
+      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="nos-title">
+        <h2 id="nos-title">Post Notice of Sale</h2>
+        <p class="hint">${vehicleName(vehicle)} · this is a simulated Notice of Sale.</p>
+        <form data-action="notice-sale">
+          <input type="hidden" name="vehicleId" value="${vehicle.id}" />
+          <div class="form-row">
+            <label for="personName">Person's name</label>
+            <input id="personName" name="personName" required />
+          </div>
+          <div class="form-row">
+            <label for="buyerDl">DL # (if known)</label>
+            <input id="buyerDl" name="buyerDl" />
+          </div>
+          <div class="form-row">
+            <label for="soldProvince">Province sold in</label>
+            <input id="soldProvince" name="soldProvince" required />
+          </div>
+          <div class="form-row">
+            <label for="dateSold">Date sold</label>
+            <input id="dateSold" name="dateSold" type="date" required />
+          </div>
+          <div class="actions">
+            <button class="primary-button" type="submit">Add simulated Notice of Sale</button>
+            <button class="secondary-button" type="button" data-action="close-nos">Cancel</button>
+          </div>
+        </form>
+      </section>
+    </div>`;
+  }
+
+  function combinedHistory(p) {
+    const userRequests = state.requests[p.username] || [];
+    return [...userRequests, ...p.history];
   }
 
   function historyList(p) {
-    const userRequests = state.requests[p.username] || [];
-    const history = [...userRequests, ...p.history];
+    const history = combinedHistory(p);
     return `<ul class="history-list">${history.map((item) => `
       <li class="history-item">
         <strong>${item.service}</strong><br />
@@ -674,6 +777,38 @@
     render();
   }
 
+  function submitNoticeOfSale(form) {
+    const vehicleId = form.vehicleId.value;
+    const vehicle = profile().vehicles.find((v) => v.id === vehicleId);
+    if (!vehicle) return;
+    const sale = {
+      ref: ref("NVD-NOS"),
+      personName: form.personName.value.trim(),
+      buyerDl: form.buyerDl.value.trim(),
+      soldProvince: form.soldProvince.value.trim(),
+      dateSold: form.dateSold.value,
+    };
+    if (!sale.personName || !sale.soldProvince || !sale.dateSold) {
+      announce("Complete the Notice of Sale fields to continue.");
+      return;
+    }
+    state.vehicleSales[profile().username] = {
+      ...(state.vehicleSales[profile().username] || {}),
+      [vehicleId]: sale,
+    };
+    const request = {
+      ref: sale.ref,
+      service: `Simulated Notice of Sale - ${vehicleName(vehicle)}`,
+      status: `Sold to ${sale.personName}`,
+      date: sale.dateSold,
+    };
+    state.requests[profile().username] = [request, ...(state.requests[profile().username] || [])];
+    activeNoticeVehicleId = null;
+    saveState();
+    announce(`Simulated Notice of Sale submitted. Plate removed from ${vehicleName(vehicle)}.`);
+    render();
+  }
+
   function infoPage() {
     const label = location.hash.split("/").slice(2).join("/").replace(/-/g, " ") || "demo information";
     return shell(`
@@ -699,6 +834,8 @@
     else if (route === "#/photo") app.innerHTML = photoScreen();
     else if (route === "#/result") app.innerHTML = resultScreen();
     else if (route === "#/dashboard") app.innerHTML = dashboardScreen();
+    else if (route === "#/dashboard/vehicles") app.innerHTML = dashboardVehiclesScreen();
+    else if (route === "#/dashboard/history") app.innerHTML = dashboardHistoryScreen();
     else if (route.startsWith("#/transaction/")) app.innerHTML = transactionScreen();
     else if (route.startsWith("#/info/")) app.innerHTML = infoPage();
     else app.innerHTML = publicLanding();
@@ -727,6 +864,7 @@
       const action = form.dataset.action;
       if (action === "login") handleLogin(form);
       if (action === "code") handleCode(form);
+      if (action === "notice-sale") submitNoticeOfSale(form);
       if (action === "search") announce("Search is decorative in this demo.");
     }));
     const actions = {
@@ -754,10 +892,15 @@
       "transaction-next": handleTransactionNext,
       "transaction-back": () => { activeTransaction.step = Math.max(1, activeTransaction.step - 1); render(); },
       "submit-request": submitRequest,
+      "close-nos": () => { activeNoticeVehicleId = null; render(); },
     };
     document.querySelectorAll("[data-action]").forEach((button) => {
       const handler = actions[button.dataset.action];
       if (handler) button.addEventListener("click", handler);
     });
+    document.querySelectorAll("[data-open-nos]").forEach((button) => button.addEventListener("click", () => {
+      activeNoticeVehicleId = button.dataset.openNos;
+      render();
+    }));
   }
 })();
