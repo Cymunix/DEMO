@@ -896,3 +896,138 @@ dd {
     grid-template-columns: repeat(5, minmax(26px, 1fr));
   }
 }
+
+@media (max-width: 560px) {
+  body {
+    font-size: 15px;
+  }
+
+  .demo-notice {
+    position: static;
+    text-align: left;
+  }
+
+  .layout-width,
+  .topbar-inner {
+    width: min(100% - 1rem, 1140px);
+  }
+
+  .topbar {
+    border-bottom-width: 6px;
+  }
+
+  .brand-mark {
+    font-size: 1.35rem;
+  }
+
+  .header-tools {
+    min-height: auto;
+    gap: 0.65rem;
+  }
+
+  .header-tools::before {
+    background: var(--cyan);
+  }
+
+  .search {
+    width: 100%;
+  }
+
+  .hero {
+    padding: 1.4rem 0;
+  }
+
+  .hero h1 {
+    font-size: 1.7rem;
+  }
+
+  .hero p {
+    font-size: 1rem;
+  }
+
+  .section-band,
+  .main-panel {
+    padding: 1.25rem 0;
+  }
+
+  .auth-panel,
+  .demo-accounts,
+  .info-card,
+  .record-card,
+  .transaction-card,
+  .camera-panel,
+  .result-panel {
+    padding: 0.85rem;
+  }
+
+  .record-card dl,
+  .demo-account dl,
+  .review-list {
+    grid-template-columns: 1fr;
+    gap: 0.1rem;
+  }
+
+  .password-wrap {
+    grid-template-columns: 1fr;
+  }
+
+  .actions,
+  .service-option,
+  .vehicle-item {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .actions > *,
+  .service-option button,
+  .vehicle-item button,
+  .primary-button,
+  .secondary-button,
+  .danger-button {
+    width: 100%;
+  }
+
+  .dashboard-card-button,
+  .dashboard-card-static {
+    min-height: auto;
+  }
+
+  .camera-frame {
+    min-height: 300px;
+    border-width: 5px;
+  }
+
+  .face-outline {
+    width: 170px;
+    height: 220px;
+  }
+
+  .portrait {
+    transform: scale(0.82) translateX(var(--turn, 0));
+  }
+
+  .modal-backdrop {
+    align-items: end;
+    padding: 0.5rem;
+  }
+
+  .modal {
+    width: 100%;
+    max-height: calc(100vh - 1rem);
+    padding: 0.9rem;
+  }
+
+  .document-preview {
+    min-height: 8rem;
+    padding: 0.9rem;
+  }
+
+  .document-preview > span {
+    inset: 38% auto auto 5%;
+    font-size: 1.35rem;
+  }
+
+  .step-pill {
+    flex: 1 1 100%;
+  }
+}
