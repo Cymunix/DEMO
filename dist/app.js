@@ -17,8 +17,10 @@
         address: "42 Harbour Road, Lunenburg, NS B0J 2C0",
       },
       vehicles: [
-        { id: "veh-1", year: "2021", make: "Subaru", model: "Forester", plate: "NVD 214", plateExpiry: "31 May 2027", permit: "VP-903124" },
-        { id: "veh-2", year: "2018", make: "Toyota", model: "Tacoma", plate: "NVD 588", plateExpiry: "30 November 2026", permit: "VP-665930" },
+        { id: "veh-1", year: "2021", make: "Subaru", model: "Forester", vin: "NVDDMO100000001", plate: "NVD 214", plateExpiry: "31 May 2027", permit: "VP-903124", permitStatus: "Permitted", permitExpiry: "31 May 2027", ownershipCycle: "cycle-1" },
+        { id: "veh-2", year: "2018", make: "Toyota", model: "Tacoma", vin: "NVDDMO100000002", plate: "NVD 588", plateExpiry: "30 November 2026", permit: "VP-665930", permitStatus: "Permitted", permitExpiry: "30 November 2026", ownershipCycle: "cycle-1" },
+        { id: "veh-4", year: "2017", make: "Mazda", model: "CX-5", vin: "NVDDMO100000004", plate: "", plateExpiry: "", permit: "", permitStatus: "Unpermitted", permitExpiry: "", ownershipCycle: "cycle-1" },
+        { id: "veh-70", year: "2014", make: "Ford", model: "Transit", vin: "NVDDMO700000001", plate: "", plateExpiry: "", permit: "", permitStatus: "Unpermitted", permitExpiry: "", ownershipCycle: "cycle-1", seventyTyped: true },
       ],
       history: [
         { ref: "NVD-REQ-10024", service: "Driver's licence renewal", status: "Complete", date: "12 Jun 2026" },
@@ -40,9 +42,37 @@
         address: "18 Maple Crescent, Truro, NS B2N 4T6",
       },
       vehicles: [
-        { id: "veh-3", year: "2020", make: "Honda", model: "Civic", plate: "NVD 932", plateExpiry: "31 March 2027", permit: "VP-318872" },
+        { id: "veh-3", year: "2020", make: "Honda", model: "Civic", vin: "NVDDMO200000003", plate: "NVD 932", plateExpiry: "31 March 2027", permit: "VP-318872", permitStatus: "Permitted", permitExpiry: "31 March 2027", ownershipCycle: "cycle-1" },
       ],
       history: [{ ref: "NVD-REQ-09918", service: "Vehicle permit replacement", status: "Complete", date: "23 Apr 2026" }],
+    },
+    "demo.suspended": {
+      username: "demo.suspended",
+      password: "DemoSuspended123!",
+      code: "123456",
+      outcome: "pass",
+      name: "Nolan Mercer",
+      portrait: { skin: "#c48a68", hair: "#2f2623", shirt: "#7a3941" },
+      licence: {
+        number: "NVD-6604-219",
+        class: "5",
+        status: "Suspended",
+        expiry: "09 August 2028",
+        address: "77 Birch Street, Sydney, NS B1P 3A9",
+      },
+      suspensionRecords: [
+        { id: "sus-1", status: "Active", reason: "Fictional unpaid fine suspension", start: "10 May 2026", end: "10 November 2026" },
+        { id: "sus-2", status: "Review required", reason: "Fictional medical review hold", start: "04 August 2026", end: "Pending review" },
+      ],
+      fines: [
+        { id: "fine-1", label: "Demo reinstatement fee", amount: "$125.00", status: "Unpaid" },
+        { id: "fine-2", label: "Demo outstanding fine", amount: "$310.00", status: "Unpaid" },
+      ],
+      vehicles: [
+        { id: "veh-s1", year: "2019", make: "Hyundai", model: "Kona", vin: "NVDSUS100000001", plate: "NVD 441", plateExpiry: "31 January 2027", permit: "VP-441002", permitStatus: "Permitted", permitExpiry: "31 January 2027", ownershipCycle: "cycle-1" },
+        { id: "veh-s2", year: "2015", make: "Chevrolet", model: "Cruze", vin: "NVDSUS100000002", plate: "", plateExpiry: "", permit: "", permitStatus: "Unpermitted", permitExpiry: "", ownershipCycle: "cycle-1" },
+      ],
+      history: [{ ref: "NVD-REQ-08832", service: "Suspension notice viewed", status: "Open", date: "14 Aug 2026" }],
     },
   };
 
@@ -89,6 +119,7 @@
   let verificationTimer = null;
   let activeTransaction = null;
   let activeNoticeVehicleId = null;
+  let activeFlow = null;
 
   const state = loadState();
 
@@ -105,9 +136,14 @@
         requests: stored.requests || {},
         assistance: stored.assistance || [],
         vehicleSales: stored.vehicleSales || {},
+        titleTransactions: stored.titleTransactions || {},
+        emails: stored.emails || {},
+        paidFines: stored.paidFines || {},
+        addresses: stored.addresses || {},
+        vehicleOverrides: stored.vehicleOverrides || {},
       };
     } catch {
-      return { requests: {}, assistance: [], vehicleSales: {} };
+      return { requests: {}, assistance: [], vehicleSales: {}, titleTransactions: {}, emails: {}, paidFines: {}, addresses: {}, vehicleOverrides: {} };
     }
   }
 
@@ -120,9 +156,15 @@
     state.requests = {};
     state.assistance = [];
     state.vehicleSales = {};
+    state.titleTransactions = {};
+    state.emails = {};
+    state.paidFines = {};
+    state.addresses = {};
+    state.vehicleOverrides = {};
     saveState();
     activeTransaction = null;
     activeNoticeVehicleId = null;
+    activeFlow = null;
     location.hash = "#/";
     announce("Demo reset. Sessions, requests and assistance records cleared.");
     render();
@@ -291,7 +333,7 @@
       <p class="hint">Credentials are public fixtures for presentation only. Buttons fill the form and leave submission to the presenter.</p>
       ${Object.values(credentials).map((account) => `
         <div class="demo-account">
-          <h3>${account.outcome === "pass" ? "Passing profile" : "Failing profile"}</h3>
+          <h3>${account.username === "demo.suspended" ? "Suspended profile" : account.outcome === "pass" ? "Passing profile" : "Failing profile"}</h3>
           <dl>
             <dt>Username</dt><dd><code>${account.username}</code></dd>
             <dt>Password</dt><dd><code>${account.password}</code></dd>
@@ -504,10 +546,11 @@
             <section class="record-card dashboard-card-static">
               <h2>Service Actions</h2>
               <div class="actions">
-                <button class="primary-button" data-service="licence">Drivers License</button>
-                <button class="primary-button" data-service="ownership">Vehicles</button>
-                <button class="primary-button" data-service="permit">Permits</button>
+                <button class="primary-button" data-nav="#/services/licence">Driving Licence</button>
+                <button class="primary-button" data-nav="#/services/vehicles">Vehicles</button>
+                <button class="primary-button" ${isSuspended() ? "disabled" : 'data-nav="#/services/permits"'}>Permits</button>
               </div>
+              ${isSuspended() ? `<p class="restriction-note">Permit services are unavailable in this demonstration while your licence is suspended. Visit an Access Nova Scotia office for assistance.</p>` : ""}
             </section>
             <button class="record-card dashboard-card-button" data-nav="#/dashboard/history">
               <span class="dashboard-card-title">Transaction History</span>
@@ -529,7 +572,7 @@
           <button class="text-button" data-nav="#/dashboard">Back to dashboard</button>
           <section class="record-card">
             <h1>My Vehicles</h1>
-            <ul class="vehicle-list">${p.vehicles.map(vehicleDetail).join("")}</ul>
+            <ul class="vehicle-list">${userVehicles().map(vehicleDetail).join("")}</ul>
           </section>
           ${activeNoticeVehicleId ? noticeOfSaleDialog(activeNoticeVehicleId) : ""}
         </div>
@@ -547,6 +590,8 @@
           <section class="record-card">
             <h1>Transaction History</h1>
             ${historyList(p)}
+            <h2>Demo inbox</h2>
+            ${inboxItems().length ? `<ul class="history-list">${inboxItems().map((mail) => `<li class="history-item"><strong>${mail.subject}</strong><br />${mail.body}${mail.documentTitle ? documentPreview(mail.documentTitle) : ""}</li>`).join("")}</ul>` : "<p>No simulated email messages yet.</p>"}
           </section>
         </div>
       </div>
@@ -809,6 +854,388 @@
     render();
   }
 
+  function isSuspended() {
+    return profile()?.licence.status.toLowerCase() === "suspended";
+  }
+
+  function currentAddress() {
+    return state.addresses[profile().username]?.residential || profile().licence.address;
+  }
+
+  function userVehicles() {
+    const p = profile();
+    const extras = state.vehicleOverrides[p.username] || [];
+    return [...p.vehicles, ...extras];
+  }
+
+  function inboxItems() {
+    return state.emails[profile().username] || [];
+  }
+
+  function addHistory(service, status = "Submitted", date = "Today") {
+    const item = { ref: ref("NVD-REQ"), service, status, date };
+    state.requests[profile().username] = [item, ...(state.requests[profile().username] || [])];
+    return item;
+  }
+
+  function addEmail(subject, body, documentTitle = "") {
+    const item = { ref: ref("NVD-EMAIL"), subject, body, documentTitle, date: "Today" };
+    state.emails[profile().username] = [item, ...(state.emails[profile().username] || [])];
+    return item;
+  }
+
+  function serviceMenuScreen() {
+    if (auth.stage !== "complete" || !auth.photo) return guarded();
+    const group = location.hash.split("/")[2];
+    const titles = { licence: "Driving Licence", vehicles: "Vehicles", permits: "Permits" };
+    const suspended = isSuspended();
+    const options = {
+      licence: [
+        { key: "renew", label: "Renew or replace driving licence", disabled: suspended, note: suspended ? "Your driving licence is suspended. Visit an Access Nova Scotia office for assistance." : "" },
+        { key: "abstract", label: "Driver's abstract" },
+        { key: "test", label: "Write a test" },
+        { key: "address", label: "Change my address" },
+        { key: "suspensions", label: "My suspensions and fines" },
+      ],
+      vehicles: [
+        { key: "replace-ownership", label: "Replace vehicle ownership" },
+        { key: "title-new", label: "Title a vehicle - new transaction (non-dealer)" },
+        { key: "title-pending", label: "Title a vehicle - pending transaction (non-dealer)" },
+        { key: "cancel-nos", label: "Cancel notice of sale" },
+      ],
+      permits: [
+        { key: "replace-permit", label: "Replace a permit", disabled: suspended, note: suspended ? "Permit services are unavailable in this demonstration while your licence is suspended. Visit an Access Nova Scotia office for assistance." : "" },
+        { key: "permit-vehicle", label: "Permit a vehicle", disabled: suspended, note: suspended ? "Permit services are unavailable in this demonstration while your licence is suspended. Visit an Access Nova Scotia office for assistance." : "" },
+        { key: "renew-permit", label: "Renew a permit", disabled: suspended, note: suspended ? "Permit services are unavailable in this demonstration while your licence is suspended. Visit an Access Nova Scotia office for assistance." : "" },
+        { key: "temporary-permit", label: "Temporary permit", disabled: suspended, note: suspended ? "Permit services are unavailable in this demonstration while your licence is suspended. Visit an Access Nova Scotia office for assistance." : "" },
+      ],
+    }[group];
+    if (!options) return dashboardScreen();
+    return shell(`
+      <div class="main-panel dashboard">
+        <div class="layout-width">
+          <button class="text-button" data-nav="#/dashboard">Back to dashboard</button>
+          <section class="record-card">
+            <h1>${titles[group]}</h1>
+            <div class="service-option-list">
+              ${options.map((option) => `
+                <div class="service-option ${option.disabled ? "disabled-option" : ""}">
+                  <div>
+                    <h2>${option.label}</h2>
+                    ${option.note ? `<p class="restriction-note">${option.note}</p>` : ""}
+                  </div>
+                  <button class="primary-button" ${option.disabled ? "disabled" : `data-nav="#/service/${group}/${option.key}"`}>Open</button>
+                </div>
+              `).join("")}
+            </div>
+            ${group === "vehicles" ? presenterControls() : ""}
+          </section>
+        </div>
+      </div>
+    `);
+  }
+
+  function presenterControls() {
+    const pending = titleTransactions().filter((item) => item.status === "Awaiting invoice");
+    if (!pending.length) return "";
+    return `<div class="presenter-panel">
+      <h2>Presenter controls</h2>
+      <p class="hint">Use this to move an awaiting-invoice title transaction into the pending payment list.</p>
+      ${pending.map((item) => `<button class="secondary-button" data-invoice="${item.id}">Simulate invoice received for VIN ${escapeHtml(item.vin)}</button>`).join("")}
+    </div>`;
+  }
+
+  function serviceFlowScreen() {
+    if (auth.stage !== "complete" || !auth.photo) return guarded();
+    const [, , group, key] = location.hash.split("/");
+    if (group === "permits" && isSuspended()) return restrictedScreen("Permit services are unavailable in this demonstration while your licence is suspended. Visit an Access Nova Scotia office for assistance.");
+    if (group === "licence" && key === "renew" && isSuspended()) return restrictedScreen("Your driving licence is suspended. Visit an Access Nova Scotia office for assistance.");
+    const map = {
+      "licence/renew": licenceRenewFlow,
+      "licence/abstract": abstractFlow,
+      "licence/test": testFlow,
+      "licence/address": addressFlow,
+      "licence/suspensions": suspensionsFlow,
+      "vehicles/replace-ownership": replaceOwnershipFlow,
+      "vehicles/title-new": titleNewFlow,
+      "vehicles/title-pending": titlePendingFlow,
+      "vehicles/cancel-nos": cancelNosFlow,
+      "permits/replace-permit": permitReplaceFlow,
+      "permits/permit-vehicle": permitVehicleFlow,
+      "permits/renew-permit": permitRenewFlow,
+      "permits/temporary-permit": temporaryPermitFlow,
+    };
+    const renderer = map[`${group}/${key}`];
+    return renderer ? renderer() : dashboardScreen();
+  }
+
+  function restrictedScreen(message) {
+    return shell(`
+      <div class="main-panel"><div class="layout-width">
+        <section class="record-card">
+          <h1>Service unavailable</h1>
+          <p class="restriction-note">${message}</p>
+          <button class="secondary-button" data-nav="#/dashboard">Back to dashboard</button>
+        </section>
+      </div></div>
+    `);
+  }
+
+  function flowShell(title, body, back = "#/dashboard") {
+    return shell(`<div class="main-panel flow"><div class="layout-width"><section class="transaction-card"><button class="text-button" data-nav="${back}">Back</button><h1>${title}</h1>${body}</section></div></div>`);
+  }
+
+  function licenceRenewFlow() {
+    return flowShell("Renew or replace driving licence", `
+      <form data-action="licence-renew">
+        <fieldset class="form-row"><legend class="fieldset-label">Service type</legend><div class="radio-list">
+          <label><input type="radio" name="kind" value="Renewal" required /> Renewal</label>
+          <label><input type="radio" name="kind" value="Replacement" /> Replacement</label>
+        </div></fieldset>
+        ${["Do you have full use of your eyes, ears and limbs?", "Have you experienced a loss of consciousness in the last 12 months?", "Do you have a medical condition that could affect your ability to drive?"].map((q, i) => `
+          <fieldset class="form-row"><legend class="fieldset-label">${q}</legend><div class="radio-list">
+            <label><input type="radio" name="medical${i}" value="yes" required /> Yes</label>
+            <label><input type="radio" name="medical${i}" value="no" /> No</label>
+          </div></fieldset>`).join("")}
+        <p>Mailing address: ${currentAddress()}</p>
+        <p><strong>$28.75 demo fee</strong> - payment is simulated.</p>
+        <button class="primary-button" type="submit">Review and submit demo request</button>
+      </form>`, "#/services/licence");
+  }
+
+  function abstractFlow() {
+    return flowShell("Driver's abstract", `<form data-action="simple-flow" data-service-name="Driver's abstract" data-doc="Driver abstract preview"><p>Request a fictional driver abstract, review the demo fee and create a watermarked preview.</p><p><strong>$19.10 demo fee</strong></p><button class="primary-button" type="submit">Request abstract</button></form>`, "#/services/licence");
+  }
+
+  function testFlow() {
+    return flowShell("Write a test", `<form data-action="simple-flow" data-service-name="Written test booking" data-doc="Test booking confirmation"><div class="form-row"><label for="testType">Test type</label><select id="testType" name="testType"><option>Class 5 knowledge test</option><option>Air brake knowledge test</option><option>Motorcycle knowledge test</option></select></div><div class="form-row"><label for="slot">Fictional availability</label><select id="slot" name="slot"><option>14 October 2026 - 10:30 AM</option><option>16 October 2026 - 2:00 PM</option></select></div><button class="primary-button" type="submit">Book demo test</button></form>`, "#/services/licence");
+  }
+
+  function addressFlow() {
+    return flowShell("Change my address", `<form data-action="change-address"><p>Current residential address: ${currentAddress()}</p><div class="form-row"><label for="residential">New residential address</label><input id="residential" name="residential" required /></div><div class="form-row"><label for="mailing">Mailing address if different</label><input id="mailing" name="mailing" /></div><button class="primary-button" type="submit">Update demo address</button></form>`, "#/services/licence");
+  }
+
+  function suspensionsFlow() {
+    const p = profile();
+    const fines = p.fines || [];
+    return flowShell("My suspensions and fines", `
+      <h2>Suspensions</h2>
+      ${(p.suspensionRecords || []).map((item) => `<div class="history-item"><strong>${item.reason}</strong><br />Status ${item.status}; start ${item.start}; scheduled end ${item.end}. Reinstatement is not automatic in this demo.</div>`).join("") || "<p>No suspension records for this profile.</p>"}
+      <h2>Outstanding fines and fees</h2>
+      <form data-action="pay-fines">
+        ${fines.map((fine) => {
+          const paid = state.paidFines[p.username]?.[fine.id];
+          return `<label class="fine-row"><input type="checkbox" name="fine" value="${fine.id}" ${paid ? "disabled" : ""} /> ${fine.label} - ${fine.amount} <span class="status">${paid ? "Paid" : fine.status}</span></label>`;
+        }).join("") || "<p>No outstanding demo fines.</p>"}
+        <p class="hint">Simulated payment does not remove suspended status.</p>
+        <button class="primary-button" type="submit">Simulate selected payment</button>
+      </form>`, "#/services/licence");
+  }
+
+  function replaceOwnershipFlow() {
+    return genericVehicleFlow("Replace vehicle ownership", "Replacement ownership request", userVehicles().filter((v) => v.permitStatus === "Permitted"), "#/services/vehicles");
+  }
+
+  function titleTransactions() {
+    return state.titleTransactions[profile().username] || seedTitleTransactions(profile().username);
+  }
+
+  function seedTitleTransactions(username) {
+    const seeded = username === "demo.pass" ? [
+      { id: "title-awaiting-1", vin: "NVDWAITING00001", cycle: "cycle-1", vehicle: "2022 Kia Soul", status: "Awaiting invoice", wantsPlate: true, safety: "Yes", amount: "$187.40" },
+      { id: "title-invoiced-1", vin: "NVDINVOICE00001", cycle: "cycle-1", vehicle: "2020 Volkswagen Golf", status: "Invoice received", wantsPlate: true, safety: "Yes", amount: "$214.80" },
+    ] : [];
+    state.titleTransactions[username] = seeded;
+    saveState();
+    return seeded;
+  }
+
+  function titleNewFlow() {
+    return flowShell("Title a vehicle - new transaction", `<form data-action="title-new"><div class="form-row"><label for="vehicle">Vehicle description</label><input id="vehicle" name="vehicle" placeholder="2021 Honda Civic" required /></div><div class="form-row"><label for="vin">VIN</label><input id="vin" name="vin" required /></div><div class="form-row"><label for="cycle">Ownership-cycle identifier</label><input id="cycle" name="cycle" value="cycle-1" required /></div><label class="fine-row"><input type="checkbox" name="seventyTyped" /> 70 typed marker</label><fieldset class="form-row"><legend class="fieldset-label">Would you like to plate the vehicle?</legend><div class="radio-list"><label><input type="radio" name="wantsPlate" value="yes" required /> Yes</label><label><input type="radio" name="wantsPlate" value="no" /> No</label></div></fieldset><fieldset class="form-row"><legend class="fieldset-label">Is the vehicle safety inspected?</legend><div class="radio-list"><label><input type="radio" name="safety" value="yes" required /> Yes</label><label><input type="radio" name="safety" value="no" /> No</label></div></fieldset><div class="form-row"><label for="insurance">Fictional insurance information or upload note</label><input id="insurance" name="insurance" required /></div><button class="primary-button" type="submit">Submit title demo</button></form>`, "#/services/vehicles");
+  }
+
+  function titlePendingFlow() {
+    const tx = titleTransactions().filter((item) => item.status === "Invoice received");
+    return flowShell("Title a vehicle - pending transaction", tx.length ? `<form data-action="title-pay"><div class="radio-list">${tx.map((item) => `<label><input type="radio" name="titleId" value="${item.id}" required /> ${escapeHtml(item.vehicle)} - VIN ${escapeHtml(item.vin)} - invoice ${item.amount}</label>`).join("")}</div><button class="primary-button" type="submit">Pay demo invoice</button></form>` : "<p>No invoiced vehicle transactions are ready for payment.</p>", "#/services/vehicles");
+  }
+
+  function cancelNosFlow() {
+    const sold = userVehicles().filter((v) => vehicleSale(v.id));
+    return flowShell("Cancel notice of sale", sold.length ? `<form data-action="cancel-nos"><div class="radio-list">${sold.map((v) => `<label><input type="radio" name="vehicleId" value="${v.id}" required /> ${vehicleName(v)} sold to ${escapeHtml(vehicleSale(v.id).personName)}</label>`).join("")}</div><div class="form-row"><label for="reason">Cancellation reason</label><input id="reason" name="reason" required /></div><button class="primary-button" type="submit">Confirm cancellation</button></form>` : "<p>No active Notice of Sale records are available to cancel.</p>", "#/services/vehicles");
+  }
+
+  function permitReplaceFlow() {
+    return genericVehicleFlow("Replace a permit", "Replacement permit", userVehicles().filter((v) => v.permitStatus === "Permitted"), "#/services/permits", "Printable demo permit");
+  }
+
+  function permitVehicleFlow() {
+    return genericVehicleFlow("Permit a vehicle", "Vehicle permit", userVehicles().filter((v) => v.permitStatus !== "Permitted"), "#/services/permits", "Printable demo permit");
+  }
+
+  function permitRenewFlow() {
+    return genericVehicleFlow("Renew a permit", "Permit renewal", userVehicles().filter((v) => v.permitStatus === "Permitted"), "#/services/permits", "Printable demo permit");
+  }
+
+  function temporaryPermitFlow() {
+    return flowShell("Temporary permit", `<form data-action="temporary-permit"><div class="form-row"><label for="vehicleId">Vehicle</label><select id="vehicleId" name="vehicleId">${userVehicles().map((v) => `<option value="${v.id}">${vehicleName(v)}</option>`).join("")}</select></div><div class="form-row"><label for="insurance">Insurance information</label><input id="insurance" name="insurance" required /></div><fieldset class="form-row"><legend class="fieldset-label">Is the vehicle safety inspected?</legend><div class="radio-list"><label><input type="radio" name="safety" value="yes" required /> Yes - 30-day temporary permit</label><label><input type="radio" name="safety" value="no" /> No - one-day, one-way travel permit</label></div></fieldset><div class="form-row"><label for="travel">Departure, destination and travel date if one-way</label><input id="travel" name="travel" /></div><button class="primary-button" type="submit">Review and issue demo temporary permit</button></form>`, "#/services/permits");
+  }
+
+  function genericVehicleFlow(title, serviceName, vehicles, back, doc = "Demo document") {
+    return flowShell(title, vehicles.length ? `<form data-action="vehicle-simple" data-service-name="${serviceName}" data-doc="${doc}"><div class="form-row"><label for="vehicleId">Vehicle</label><select id="vehicleId" name="vehicleId">${vehicles.map((v) => `<option value="${v.id}">${vehicleName(v)}${v.seventyTyped ? " - 70 typed" : ""}</option>`).join("")}</select></div><p>Mailing address: ${currentAddress()}</p><p><strong>Demo fee</strong> - payment is simulated.</p><button class="primary-button" type="submit">Submit demo request</button></form>` : "<p>No eligible vehicles are available for this demo service.</p>", back);
+  }
+
+  function completionScreen(title, message, docTitle = "") {
+    return flowShell(title, `<div class="success" role="status">${message}</div>${docTitle ? documentPreview(docTitle) : ""}<button class="primary-button" data-nav="#/dashboard">Return to dashboard</button>`);
+  }
+
+  function documentPreview(title) {
+    return `<div class="document-preview"><span>DEMO - NOT VALID</span><h2>${title}</h2><p>This printable preview is fictional and has no legal effect.</p></div>`;
+  }
+
+  function handleLicenceRenew(form) {
+    const answers = [form.medical0.value, form.medical1.value, form.medical2.value];
+    const concern = answers[0] === "no" || answers[1] === "yes" || answers[2] === "yes";
+    const kind = form.kind.value;
+    const item = addHistory(`${kind} driving licence`, concern ? "Assisted review required" : "Submitted");
+    if (concern) {
+      addEmail("Assisted medical review created", "This simulated request was routed for assisted review because a medical answer indicated a possible concern.", "Assisted review notice");
+      saveState();
+      app.innerHTML = completionScreen("Assisted review - simulated", "Your request has been routed to assisted review in this demonstration. No automatic approval was granted.", "Assisted review notice");
+      bindEvents();
+      return;
+    }
+    addEmail(`${kind} driving licence confirmation`, `Demo request ${item.ref} was submitted.`, "30-day temporary driving licence");
+    saveState();
+    app.innerHTML = completionScreen("Shipment confirmation", "Your fictional request was submitted. A 30-day temporary driving licence is shown below.", "30-day temporary driving licence");
+    bindEvents();
+  }
+
+  function handleSimpleFlow(form) {
+    const service = form.dataset.serviceName;
+    const doc = form.dataset.doc || "Demo document";
+    const item = addHistory(service, "Complete");
+    addEmail(`${service} confirmation`, `Demo request ${item.ref} was completed.`, doc);
+    saveState();
+    app.innerHTML = completionScreen(service, "The simulated request is complete. No real payment was taken.", doc);
+    bindEvents();
+  }
+
+  function handleChangeAddress(form) {
+    state.addresses[profile().username] = {
+      residential: form.residential.value.trim(),
+      mailing: form.mailing.value.trim() || form.residential.value.trim(),
+    };
+    addHistory("Change my address", "Complete");
+    addEmail("Address change confirmation", "Your fictional residential and mailing address were updated in this demo.", "Address confirmation");
+    saveState();
+    app.innerHTML = completionScreen("Address updated", "The demo profile address has been updated.", "Address confirmation");
+    bindEvents();
+  }
+
+  function handlePayFines(form) {
+    const selected = [...form.querySelectorAll("input[name='fine']:checked")].map((input) => input.value);
+    if (!selected.length) return announce("Select at least one demo fine or fee.");
+    state.paidFines[profile().username] = { ...(state.paidFines[profile().username] || {}) };
+    selected.forEach((id) => { state.paidFines[profile().username][id] = true; });
+    addHistory("Suspension fines and fees payment", "Paid - suspension remains active");
+    addEmail("Demo fine payment receipt", "Selected fictional fines or fees were marked paid. The licence remains suspended.", "Payment receipt");
+    saveState();
+    app.innerHTML = completionScreen("Payment recorded", "Selected demo fines or fees were marked paid. This does not remove the suspended status.", "Payment receipt");
+    bindEvents();
+  }
+
+  function handleVehicleSimple(form) {
+    const vehicle = userVehicles().find((v) => v.id === form.vehicleId.value);
+    if (!vehicle) return;
+    if (vehicle.seventyTyped && /plate/i.test(form.dataset.serviceName || "")) {
+      return announce("70 typed restriction blocks online plate issuance.");
+    }
+    const item = addHistory(`${form.dataset.serviceName} - ${vehicleName(vehicle)}`, "Submitted");
+    addEmail(`${form.dataset.serviceName} confirmation`, `Demo request ${item.ref} was submitted for ${vehicleName(vehicle)}.`, form.dataset.doc || "Demo document");
+    saveState();
+    app.innerHTML = completionScreen(form.dataset.serviceName, "The simulated vehicle request was submitted.", form.dataset.doc || "Demo document");
+    bindEvents();
+  }
+
+  function handleTitleNew(form) {
+    const vin = form.vin.value.trim().toUpperCase();
+    const cycle = form.cycle.value.trim();
+    const existing = titleTransactions().find((item) => item.vin === vin && item.cycle === cycle && item.status !== "Cancelled");
+    if (existing) return announce("A demo title transaction already exists for this VIN and ownership cycle.");
+    const seventyTyped = form.seventyTyped.checked;
+    const wantsPlate = form.wantsPlate.value === "yes";
+    const safety = form.safety.value;
+    const tx = {
+      id: ref("TITLE"),
+      vin,
+      cycle,
+      vehicle: form.vehicle.value.trim(),
+      status: "Awaiting invoice",
+      wantsPlate,
+      safety: safety === "yes" ? "Yes" : "No",
+      seventyTyped,
+      amount: "$204.50",
+    };
+    state.titleTransactions[profile().username] = [tx, ...titleTransactions()];
+    const note = seventyTyped && wantsPlate
+      ? "70 typed: proof of safety inspection must be presented at an Access Nova Scotia centre before a plate can be issued. Online temporary plate issuance is blocked."
+      : wantsPlate && safety === "no"
+        ? "A 10-day safety-inspection delay/requirement is shown for this uninspected vehicle."
+        : "Awaiting invoice before final documents are available.";
+    addHistory(`Title transaction - ${tx.vehicle}`, "Awaiting invoice");
+    saveState();
+    app.innerHTML = completionScreen("Title transaction submitted", `${note} Final ownership and permit documents are not available until an invoice is issued and paid.`);
+    bindEvents();
+  }
+
+  function handleTitlePay(form) {
+    const id = form.titleId.value;
+    const tx = titleTransactions().find((item) => item.id === id);
+    if (!tx || tx.status === "Complete") return announce("This invoice cannot be paid again.");
+    tx.status = "Complete";
+    const vehicle = {
+      id: ref("veh"),
+      year: tx.vehicle.split(" ")[0] || "2026",
+      make: tx.vehicle.split(" ")[1] || "Demo",
+      model: tx.vehicle.split(" ").slice(2).join(" ") || "Vehicle",
+      vin: tx.vin,
+      plate: tx.wantsPlate && !tx.seventyTyped ? `NVD ${Math.floor(100 + Math.random() * 899)}` : "",
+      plateExpiry: tx.wantsPlate && !tx.seventyTyped ? "10-day temporary plate" : "",
+      permit: tx.wantsPlate && !tx.seventyTyped ? ref("VP") : "",
+      permitStatus: tx.wantsPlate && !tx.seventyTyped ? "Permitted" : "Unpermitted",
+      permitExpiry: tx.wantsPlate && !tx.seventyTyped ? "Temporary" : "",
+      ownershipCycle: tx.cycle,
+    };
+    state.vehicleOverrides[profile().username] = [vehicle, ...(state.vehicleOverrides[profile().username] || [])];
+    addHistory(`Completed title transaction - ${tx.vehicle}`, "Complete");
+    addEmail("Title transaction complete", "This simulated email contains demo ownership and permit previews where applicable.", "Ownership and permit documents");
+    saveState();
+    app.innerHTML = completionScreen("Invoice paid", "The demo invoice was paid and the completed ownership record was added to the profile.", "Ownership and permit documents");
+    bindEvents();
+  }
+
+  function handleCancelNos(form) {
+    const vehicleId = form.vehicleId.value;
+    if (state.vehicleSales[profile().username]) delete state.vehicleSales[profile().username][vehicleId];
+    addHistory("Cancel notice of sale", "Complete");
+    addEmail("Notice of Sale cancellation", "The fictional Notice of Sale was cancelled.", "Notice of Sale cancellation");
+    saveState();
+    app.innerHTML = completionScreen("Notice of Sale cancelled", "The fictional vehicle record has been updated.", "Notice of Sale cancellation");
+    bindEvents();
+  }
+
+  function handleTemporaryPermit(form) {
+    const vehicle = userVehicles().find((v) => v.id === form.vehicleId.value);
+    if (!vehicle) return;
+    if (vehicle.seventyTyped) return announce("70 typed restriction blocks temporary plate issuance; proof must be presented at an Access Nova Scotia centre.");
+    const type = form.safety.value === "yes" ? "30-day temporary permit" : "one-day, one-way travel permit";
+    addHistory(`${type} - ${vehicleName(vehicle)}`, "Complete");
+    addEmail("Temporary permit confirmation", `A fictional ${type} was issued.`, "Printable demo temporary permit");
+    saveState();
+    app.innerHTML = completionScreen("Temporary permit issued", `The selected permit type is ${type}. No real permit was issued.`, "Printable demo temporary permit");
+    bindEvents();
+  }
+
   function infoPage() {
     const label = location.hash.split("/").slice(2).join("/").replace(/-/g, " ") || "demo information";
     return shell(`
@@ -836,6 +1263,8 @@
     else if (route === "#/dashboard") app.innerHTML = dashboardScreen();
     else if (route === "#/dashboard/vehicles") app.innerHTML = dashboardVehiclesScreen();
     else if (route === "#/dashboard/history") app.innerHTML = dashboardHistoryScreen();
+    else if (route.startsWith("#/services/")) app.innerHTML = serviceMenuScreen();
+    else if (route.startsWith("#/service/")) app.innerHTML = serviceFlowScreen();
     else if (route.startsWith("#/transaction/")) app.innerHTML = transactionScreen();
     else if (route.startsWith("#/info/")) app.innerHTML = infoPage();
     else app.innerHTML = publicLanding();
@@ -865,6 +1294,15 @@
       if (action === "login") handleLogin(form);
       if (action === "code") handleCode(form);
       if (action === "notice-sale") submitNoticeOfSale(form);
+      if (action === "licence-renew") handleLicenceRenew(form);
+      if (action === "simple-flow") handleSimpleFlow(form);
+      if (action === "change-address") handleChangeAddress(form);
+      if (action === "pay-fines") handlePayFines(form);
+      if (action === "vehicle-simple") handleVehicleSimple(form);
+      if (action === "title-new") handleTitleNew(form);
+      if (action === "title-pay") handleTitlePay(form);
+      if (action === "cancel-nos") handleCancelNos(form);
+      if (action === "temporary-permit") handleTemporaryPermit(form);
       if (action === "search") announce("Search is decorative in this demo.");
     }));
     const actions = {
@@ -901,6 +1339,17 @@
     document.querySelectorAll("[data-open-nos]").forEach((button) => button.addEventListener("click", () => {
       activeNoticeVehicleId = button.dataset.openNos;
       render();
+    }));
+    document.querySelectorAll("[data-invoice]").forEach((button) => button.addEventListener("click", () => {
+      const tx = titleTransactions().find((item) => item.id === button.dataset.invoice);
+      if (tx && tx.status === "Awaiting invoice") {
+        tx.status = "Invoice received";
+        addHistory(`Invoice received - ${tx.vehicle}`, "Ready for payment");
+        addEmail("Vehicle title invoice received", `A fictional invoice for VIN ${tx.vin} is ready for payment.`, "Demo invoice");
+        saveState();
+        announce("Invoice simulated and moved to pending transaction list.");
+        render();
+      }
     }));
   }
 })();

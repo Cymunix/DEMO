@@ -699,6 +699,78 @@ dd {
   margin-top: 0;
 }
 
+.service-option-list {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.service-option,
+.presenter-panel,
+.fine-row {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--soft);
+  padding: 0.85rem;
+}
+
+.service-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.service-option h2 {
+  margin: 0 0 0.2rem;
+  font-size: 1.1rem;
+}
+
+.disabled-option {
+  opacity: 0.72;
+}
+
+.restriction-note {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.presenter-panel {
+  margin-top: 1rem;
+}
+
+.fine-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0.5rem 0;
+}
+
+.document-preview {
+  position: relative;
+  margin: 1rem 0;
+  padding: 1.2rem;
+  min-height: 9rem;
+  border: 2px dashed #8aa2b5;
+  background: #fff;
+  overflow: hidden;
+}
+
+.document-preview > span {
+  position: absolute;
+  inset: 35% auto auto 8%;
+  transform: rotate(-14deg);
+  color: rgba(179, 38, 30, 0.22);
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.document-preview h2,
+.document-preview p {
+  position: relative;
+}
+
 .history-item {
   border-top: 1px solid var(--line);
   padding: 0.8rem 0;

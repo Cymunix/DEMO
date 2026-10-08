@@ -18,6 +18,10 @@ What is simulated:
 - Two-step delivery is simulated and the demo code is displayed on screen.
 - Live photo recognition is an animated deterministic simulation with fictional portraits.
 - Payment, records, requests and assisted verification are fictional.
+- Medical-question answers route to either demo completion or simulated assisted review; they are not stored in request history.
+- The “70 typed” marker is a fictional restriction that blocks online plate or temporary plate issuance and prompts Access Nova Scotia handling.
+- Title transactions use a VIN plus ownership-cycle identifier to prevent duplicate demo submissions until a later ownership cycle.
+- Safety-inspection timing, invoices, emails, documents and temporary permits are demonstration-only behaviours.
 - No real government APIs, RMV records, camera capture, biometrics, email, SMS, banking details or document issuance are used.
 
 Integration notes for a production system:
